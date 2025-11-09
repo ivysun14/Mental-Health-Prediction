@@ -5,7 +5,7 @@ This directory contains the scripts that transform the raw transcript collection
 ## 1. Prep metadata
 - Run `python preprocessing/process_metadata.py`
 - Loads `data/raw/publication_metadata_volumn1_full.csv` and `...volumn2.csv`
-- Filters sessions to those with transcript files, harmonises columns, and writes:
+- Filters sessions to those with transcript files, removes multi-client entries, and harmonises columns, then writes:
   - `data/processed/publication_metadata_volumn1_filtered.csv`
   - `data/processed/publication_metadata_combined.csv`
 
@@ -42,9 +42,9 @@ This directory contains the scripts that transform the raw transcript collection
   - `label_matrix_aligned_with_features.npz`
 
 Typical shapes (using the current dataset):
-- Naive + dictionary matrix: `(3736, 43153)`
-- Stem + dictionary matrix: `(3736, 26332)`
-- Filtered label matrix: `(3736, 49)`
+- Naive + dictionary matrix: `(3667, 43113)`
+- Stem + dictionary matrix: `(3667, 26312)`
+- Filtered label matrix: `(3667, 49)`
 
 ## 6. Train/test splits
 - Run `python preprocessing/train_test_split.py`
