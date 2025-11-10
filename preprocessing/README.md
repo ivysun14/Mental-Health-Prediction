@@ -5,15 +5,16 @@ This directory contains the scripts that transform the raw transcript collection
 ## 1. Prep metadata
 - Run `python preprocessing/process_metadata.py`
 - Loads `data/raw/publication_metadata_volumn1_full.csv` and `...volumn2.csv`
-- Filters sessions to those with transcript files, removes multi-client entries, and harmonises columns, then writes:
+- Filters sessions to those with transcript files, harmonises columns
+- Writes:
   - `data/processed/publication_metadata_volumn1_filtered.csv`
   - `data/processed/publication_metadata_combined.csv`
 
 ## 2. Build session JSON
-- Run `python preprocessing/organize.py`
+- Run `python preprocessing/process_session.py`
 - Reads the combined metadata and transcript files
-- Produces `data/processed/meta_cleaned.json`, pairing each `Entity_ID` with
-  metadata plus cleaned client/therapist text.
+- Removes sessions with missing transcripts, empty client speech after cleaning, or non-ASCII text
+- Produces `data/processed/meta_cleaned.json`, pairing each `Entity_ID` with metadata plus cleaned client/therapist text.
 
 ## 3. Dictionary features (NRC & MOESM)
 - Run `python preprocessing/build_dictionary_feature.py`

@@ -1,21 +1,21 @@
 {
   "feature_matrix_shape": [
-    3667,
-    26312
+    3506,
+    32925
   ],
   "label_matrix_shape": [
-    3667,
-    49
+    3506,
+    45
   ],
   "train_shape": [
-    2933,
-    26312
+    2804,
+    32925
   ],
   "test_shape": [
-    734,
-    26312
+    702,
+    32925
   ],
-  "num_features": 26312,
-  "num_labels": 49,
+  "num_features": 32925,
+  "num_labels": 45,
   "kfold_folds": 5
 }

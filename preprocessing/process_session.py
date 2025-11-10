@@ -4,7 +4,8 @@ Utility for organizing transcript text alongside cleaned publication metadata.
 The script reads the combined metadata produced during preprocessing, parses the
 transcript files referenced in the metadata, and writes out a JSON payload keyed
 by `Entity_ID`. Each entry contains the original metadata fields plus two lists:
-`Client_Text` and `Therapist_Text`.
+`Client_Text` and `Therapist_Text`. Non-ASCII characters are stripped during
+parsing, and sessions with no remaining client utterances are dropped.
 """
 
 from __future__ import annotations
@@ -124,10 +125,15 @@ def parse_transcript(transcript_path: Path) -> Tuple[List[str], List[str]]:
     with transcript_path.open("r", encoding="utf-8", errors="ignore") as transcript_file:
         for raw_line in transcript_file:
             role, text = classify_and_extract(raw_line)
+            if not role or not text:
+                continue
+            ascii_text = text.encode("ascii", "ignore").decode().strip()
+            if not ascii_text:
+                continue
             if role == "client":
-                client_lines.append(text)
+                client_lines.append(ascii_text)
             elif role == "therapist":
-                therapist_lines.append(text)
+                therapist_lines.append(ascii_text)
 
     logging.debug(
         "Parsed transcript %s | client lines: %d | therapist lines: %d",
@@ -159,6 +165,10 @@ def build_sessions(metadata: pd.DataFrame, transcripts_dir: Path) -> Dict[str, D
         session_data = row.to_dict()
         session_data["Client_Text"] = client_lines
         session_data["Therapist_Text"] = therapist_lines
+        if not client_lines:
+            logging.debug("Skipping session %s due to empty client text after cleaning.", entity_id)
+            continue
+
         sessions[entity_id] = session_data
 
     if missing_transcripts:

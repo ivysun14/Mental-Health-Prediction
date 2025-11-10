@@ -44,13 +44,13 @@ COLUMNS_TO_KEEP = [
     "Real_Title",
 ]
 
-# Columns whose values may indicate multiple clients when delimited.
-MULTI_CLIENT_COLUMNS = [
-    "Client_Age",
-    "Client_Gender",
-    "Client_Marital_Status",
-    "Client_Sexual_Orientation",
-]
+# # Columns whose values may indicate multiple clients when delimited.
+# MULTI_CLIENT_COLUMNS = [
+#     "Client_Age",
+#     "Client_Gender",
+#     "Client_Marital_Status",
+#     "Client_Sexual_Orientation",
+# ]
 
 
 def configure_logging() -> None:
@@ -138,15 +138,15 @@ def combine_metadata(volume1_df: pd.DataFrame, volume2_path: Path) -> pd.DataFra
         ignore_index=True,
     )
     logging.info("Combined metadata contains %d rows.", len(combined_df))
-    multi_mask = combined_df.apply(_has_multiple_clients, axis=1)
-    multi_count = int(multi_mask.sum())
-    if multi_count:
-        combined_df = combined_df.loc[~multi_mask].reset_index(drop=True)
-        logging.info(
-            "Removed %d sessions involving multiple clients. Remaining rows: %d.",
-            multi_count,
-            len(combined_df),
-        )
+    # multi_mask = combined_df.apply(_has_multiple_clients, axis=1)
+    # multi_count = int(multi_mask.sum())
+    # if multi_count:
+    #     combined_df = combined_df.loc[~multi_mask].reset_index(drop=True)
+    #     logging.info(
+    #         "Removed %d sessions involving multiple clients. Remaining rows: %d.",
+    #         multi_count,
+    #         len(combined_df),
+    #     )
     return combined_df
 
 
