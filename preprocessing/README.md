@@ -24,9 +24,12 @@ This directory contains the scripts that transform the raw transcript collection
 ## 4. Label matrices
 - Run `python preprocessing/build_label_matrix.py`
 - Builds symptom dictionaries and binary label matrices from the session JSON
-- Writes both full and filtered matrices (>=2% prevalence) to `data/processed/`
-  - `label_matrix_full.npz`
-  - `label_matrix_filtered.npz`
+- Supports merging similar symptoms before filtering (≥2% prevalence) using `data/processed/label_merge_groups.json`
+- Writes both full and filtered matrices to `data/processed/`
+  - `symptom_dictionary.json` / `symptom_dictionary_filtered.json`
+  - `label_matrix_full.(csv|npz)` / `label_matrix_filtered.(csv|npz)`
+  - `label_matrix_merged.(csv|npz)` / `label_matrix_merged_with_none.(csv|npz)`
+  - `label_matrix_merged_filtered.(csv|npz)` / `label_matrix_merged_filtered_with_none.(csv|npz)`
   - `label_matrix_aligned_with_features.npz` (aligned later in step 5)
 
 ## 5. Text feature matrices
@@ -46,6 +49,11 @@ Typical shapes (using the current dataset):
 - Naive + dictionary matrix: `(3667, 43113)`
 - Stem + dictionary matrix: `(3667, 26312)`
 - Filtered label matrix: `(3667, 49)`
+
+NOTE: different number after merging label
+- Naive + dictionary matrix: `(3506, 50280)`
+- Stem + dictionary matrix: `(3506, 32925)`
+- Filtered label matrix: `(3506, 2)`
 
 ## 6. Train/test splits
 - Run `python preprocessing/train_test_split.py`
