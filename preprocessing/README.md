@@ -45,11 +45,6 @@ This directory contains the scripts that transform the raw transcript collection
   - `feature_matrix_session_ids.json`
   - `label_matrix_aligned_with_features.npz`
 
-Typical shapes (using the current dataset):
-- Naive + dictionary matrix: `(3667, 43113)`
-- Stem + dictionary matrix: `(3667, 26312)`
-- Filtered label matrix: `(3667, 49)`
-
 NOTE: different number after merging label
 - Naive + dictionary matrix: `(3506, 50280)`
 - Stem + dictionary matrix: `(3506, 32925)`
