@@ -5,7 +5,7 @@
   ],
   "label_matrix_shape": [
     3506,
-    2
+    3
   ],
   "train_shape": [
     2804,
@@ -16,6 +16,6 @@
     32925
   ],
   "num_features": 32925,
-  "num_labels": 2,
+  "num_labels": 3,
   "kfold_folds": 5
 }

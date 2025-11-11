@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 import numpy as np
 from sklearn.model_selection import KFold, train_test_split
@@ -21,7 +21,7 @@ PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
 SPLIT_OUTPUT_DIR = PROJECT_ROOT / "data" / "splits"
 
 FEATURE_MATRIX_PATH = PROCESSED_DATA_DIR / "feature_matrix_stem_plus_dict.npz"
-LABEL_MATRIX_PATH = PROCESSED_DATA_DIR / "label_matrix_aligned_with_features.npz"
+LABEL_MATRIX_PATH = PROCESSED_DATA_DIR / "label_matrix_merged_filtered_with_none.npz"
 FEATURE_INDEX_MAP_PATH = PROCESSED_DATA_DIR / "feature_index_map_stem.json"
 
 TRAIN_FEATURES_PATH = SPLIT_OUTPUT_DIR / "train_features.npz"
@@ -48,7 +48,7 @@ def load_feature_matrix(path: Path = FEATURE_MATRIX_PATH) -> Tuple[np.ndarray, L
 
 
 def load_label_matrix(path: Path = LABEL_MATRIX_PATH) -> Tuple[np.ndarray, List[str], List[str]]:
-    """Load the aligned label matrix NPZ bundle."""
+    """Load the merged+filtered label matrix bundle."""
     bundle = np.load(path, allow_pickle=True)
     matrix = bundle["data"]
     labels = bundle["labels"].astype(str).tolist()

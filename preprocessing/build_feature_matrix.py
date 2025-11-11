@@ -45,7 +45,7 @@ STEM_COMBINED_FEATURE_MATRIX_PATH = PROCESSED_DATA_DIR / "feature_matrix_stem_pl
 FEATURE_INDEX_MAP_NAIVE_PATH = PROCESSED_DATA_DIR / "feature_index_map_naive.json"
 FEATURE_INDEX_MAP_STEM_PATH = PROCESSED_DATA_DIR / "feature_index_map_stem.json"
 FEATURE_INDEX_MAP_PATH = FEATURE_INDEX_MAP_NAIVE_PATH
-LABEL_MATRIX_PATH = PROCESSED_DATA_DIR / "label_matrix_merged_filtered.npz"
+LABEL_MATRIX_PATH = PROCESSED_DATA_DIR / "label_matrix_merged_filtered_with_none.npz"
 ALIGNED_LABEL_MATRIX_PATH = PROCESSED_DATA_DIR / "label_matrix_aligned_with_features.npz"
 
 # Regex utilities reused from the earlier scripts.
