@@ -1,6 +1,5 @@
 '''
 File: GPT_Prompting
-Created by Junwei (Ivy) Sun
 
 This file contains the script that connects to OpenAI's API and
 prompt the model for anxiety + depression multi-label classification.
@@ -12,21 +11,28 @@ Currently two experiments are being conducted:
 import os
 import sys
 import json
+import time
 from openai import OpenAI
+from openai import RateLimitError
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 import tiktoken
 from sklearn.metrics import accuracy_score
 
 
 ## GLOBAL VARIABLES
 ## ================
-MODEL = "gpt-3.5-turbo-0125"           # gpt-3.5-turbo-0125, gpt-4-turbo(gpt-4-turbo-2024-04-09), gpt-4o(gpt-4o-2024-05-13)
-INPUT_TOKEN_LIMIT = 16385      # 16385, 128000, 128000
+MODEL = "gpt-4o-2024-05-13"           # gpt-3.5-turbo-0125, gpt-4-turbo(gpt-4-turbo-2024-04-09), gpt-4o(gpt-4o-2024-05-13)
+INPUT_TOKEN_LIMIT = 128000              # 16385, 128000, 128000
 OUTPUT_TOKEN_LIMIT = 4096
-TEMPERATURE = 0.5 # range 0-2, the higher the value the more random the response, default 1
-SYMPTOM = ["anxiety", "depression"]
+TEMPERATURE = 0.5                      # range 0-2, the higher the value the more random the response, default 1
+SYMPTOM = ["anxiety", "depression"]    # symptoms wish to classify
+FUNC_TOKEN = 0                         # total tokens taken up by functions
+MAX_BACKOFF = 60                       # max wait time between API calls
+
 # API SETUP
-client = OpenAI(api_key="input API key")
+client = OpenAI(api_key="Input API key")
 # To get the tokeniser corresponding to a specific model in the OpenAI API:
 enc = tiktoken.encoding_for_model(MODEL)
 #enc = tiktoken.get_encoding("o200k_base")  # manually set tokenizer for gpt-4o
@@ -55,10 +61,13 @@ function = {
    }
 }
 
+FUNC_TOKEN += len(enc.encode(json.dumps(function)))
+print(f"The function is encoded for {FUNC_TOKEN} tokens.")
+
 
 ## INPUT FILES
 ## ===========
-f = open('remove_cheating_words/removed_meta_all.json') #  processed therapist and client texts
+f = open('remove_cheating_words/removed_meta_all.json')                                 #  processed therapist and client texts
 data = json.load(f)
 f.close()
 label_matrix = np.loadtxt("remove_cheating_words/label_matrix_merge_with_none_new.txt") # label matrix
@@ -133,7 +142,8 @@ def prompt_GPT_accuracy(input_json, label_mat, all_idx, symptom = "anxiety", n_p
         index = 2
     label_vector = label_mat[:,index].reshape(label_mat.shape[0])
 
-    CLASS_DESCRIPTION = f"Classes: [Positive, Negative]\n`Positive` indicates the client has {symptom}. `Negative` indicates the client does not have {symptom}."
+    SYSTEM = "You are an experienced psychiatrist who will diagnose mental health conditions from counseling transcripts."
+    CLASS_DESCRIPTION = f"Classes: [Positive, Negative]\n`Positive` indicates the client shows the symptom of {symptom}. `Negative` indicates the client does not show the symptom of {symptom}."
     PROMPT = f"Classify the client text into one of the classes.\n{CLASS_DESCRIPTION}"
 
     for session in input_json:
@@ -150,18 +160,18 @@ def prompt_GPT_accuracy(input_json, label_mat, all_idx, symptom = "anxiety", n_p
             # process the client text into api-recognizable format
             client_text = input_json[session]['Client_Text_Replaced_Two']
             concat_text = f"{PROMPT}\nText:"
-            token_size = len(enc.encode(concat_text))
+            token_size = len(enc.encode(SYSTEM)) + len(enc.encode(concat_text))
             for line in client_text:  # client_text: list[str]
                 token_size += len(enc.encode(line))
-                if token_size >= INPUT_TOKEN_LIMIT:
-                    print(f"Reached maximum allowed token size: {token_size}/{INPUT_TOKEN_LIMIT}")
+                if (token_size + FUNC_TOKEN + OUTPUT_TOKEN_LIMIT) >= INPUT_TOKEN_LIMIT:
+                    print(f"Reached maximum allowed token size considering tokens reserved for functions and outputs: {token_size}/{INPUT_TOKEN_LIMIT}")
                     break
                 concat_text = concat_text + ' ' + line
             concat_text = concat_text + '\n' + 'Class: '
-            print(f"The transcript has a total of {token_size}/{INPUT_TOKEN_LIMIT} tokens.")
+            print(f"The message has a total of {token_size}/{INPUT_TOKEN_LIMIT} tokens.")
         
             # feed the processed client text to content
-            message = [{"role": "user", "content": concat_text}]
+            message = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": concat_text}]
         
             # write the concatenated text into a file
             if not os.path.isfile(f"pos_neg_examples/{true_label}_{symptom}_accuracy_example.txt"):
@@ -172,19 +182,26 @@ def prompt_GPT_accuracy(input_json, label_mat, all_idx, symptom = "anxiety", n_p
                     file.write("\n\n")
                     file.write(concat_text)
         
-            # query gpt
-            try:
-                completion = client.chat.completions.create(
-                    model = MODEL,
-                    temperature = TEMPERATURE,
-                    max_tokens = OUTPUT_TOKEN_LIMIT,
-                    messages = message,
-                    functions=[function],
-                    function_call={"name": "multilabel"}
-                )
-            except Exception as e:
-                print(f"Encountered error: {e}")
-                sys.exit(1)
+            # query gpt (exponential backoff time to ensure not hitting rate limit)
+            backoff = 2
+            while True:
+                try:
+                    completion = client.chat.completions.create(
+                        model = MODEL,
+                        temperature = TEMPERATURE,
+                        max_tokens = OUTPUT_TOKEN_LIMIT,
+                        messages = message,
+                        functions=[function],
+                        function_call={"name": "multilabel"}
+                    )
+                    break
+                except RateLimitError as e:
+                    print(f"Rate limit hit: {e}. Waiting {backoff}s before retry...")
+                    time.sleep(backoff)
+                    backoff = min(backoff * 2, MAX_BACKOFF)
+                except Exception as e:
+                    print(f"Encountered error: {e}")
+                    sys.exit(1)
 
             # construct a json object from the response
             # append current session's index into json object
@@ -242,7 +259,8 @@ def prompt_GPT_stability(input_json, label_mat, symptom = "anxiety", idx = 777, 
     neg = 0  # number of negative predictions
     pred_labels = np.zeros((iter, 1))  # save GPT predicted labels for each iteration
 
-    CLASS_DESCRIPTION = f"Classes: [Positive, Negative]\n`Positive` indicates the client has {symptom}. `Negative` indicates the client does not have {symptom}."
+    SYSTEM = "You are an experienced psychiatrist who will diagnose mental health conditions from counseling transcripts."
+    CLASS_DESCRIPTION = f"Classes: [Positive, Negative]\n`Positive` indicates the client shows the symptom of {symptom}. `Negative` indicates the client does not show the symptom of {symptom}."
     PROMPT = f"Classify the client text into one of the classes.\n{CLASS_DESCRIPTION}"
 
     if symptom == "anxiety":
@@ -263,38 +281,45 @@ def prompt_GPT_stability(input_json, label_mat, symptom = "anxiety", idx = 777, 
             # process the client text into api-recognizable format
             client_text = input_json[session]['Client_Text_Replaced_Two']
             concat_text = f"{PROMPT}\nText:"
-            token_size = len(enc.encode(concat_text))
+            token_size = len(enc.encode(SYSTEM)) + len(enc.encode(concat_text))
             for line in client_text:  # client_text: list[str]
                 token_size += len(enc.encode(line))
-                if token_size >= INPUT_TOKEN_LIMIT:
-                    print(f"Reached maximum allowed token size: {token_size}/{INPUT_TOKEN_LIMIT}")
+                if (token_size + FUNC_TOKEN + OUTPUT_TOKEN_LIMIT) >= INPUT_TOKEN_LIMIT:
+                    print(f"Reached maximum allowed token size considering tokens reserved for functions and outputs: {token_size}/{INPUT_TOKEN_LIMIT}")
                     break
                 concat_text = concat_text + ' ' + line
             concat_text = concat_text + '\n' + 'Class: '
-            print(f"The transcript has a total of {token_size}/{INPUT_TOKEN_LIMIT} tokens.")
+            print(f"The message has a total of {token_size}/{INPUT_TOKEN_LIMIT} tokens.")
         
             # feed the processed client text to content
-            message = [{"role": "user", "content": concat_text}]
+            message = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": concat_text}]
         
             # write the concatenated text into a file
             if not os.path.isfile(f"pos_neg_examples/stability_example.txt"):
                 with open(f"pos_neg_examples/stability_example.txt", "w") as file: 
                     file.write(concat_text)
         
-            # query gpt
+            # query gpt (exponential backoff time to ensure not hitting rate limit)
             for i in range(iter):
-                try:
-                    completion = client.chat.completions.create(
-                        model = MODEL,
-                        temperature = TEMPERATURE,
-                        max_tokens = OUTPUT_TOKEN_LIMIT,
-                        messages = message,
-                        functions=[function],
-                        function_call={"name": "multilabel"}
-                    )
-                except Exception as e:
-                    print(f"Encountered error: {e}")
-                    sys.exit(1)
+                backoff = 2
+                while True:
+                    try:
+                        completion = client.chat.completions.create(
+                            model = MODEL,
+                            temperature = TEMPERATURE,
+                            max_tokens = OUTPUT_TOKEN_LIMIT,
+                            messages = message,
+                            functions=[function],
+                            function_call={"name": "multilabel"}
+                        )
+                        break
+                    except RateLimitError as e:
+                        print(f"Rate limit hit: {e}. Waiting {backoff}s before retry...")
+                        time.sleep(backoff)
+                        backoff = min(backoff * 2, MAX_BACKOFF)
+                    except Exception as e:
+                        print(f"Encountered error: {e}")
+                        sys.exit(1)
 
                 # construct a json object from the response
                 # append current session's index into json object
@@ -341,7 +366,8 @@ y_true = np.concatenate((anxiety_true, depression_true), axis=1)
 print(y_preds.shape)
 print(y_true.shape)
 accuracy = accuracy_score(y_true, y_preds)
-print(accuracy)
+print(f"The multilabel accuracy for {MODEL} is: {accuracy}")
+
 
 # stability test
 pos_anxiety_count, neg_anxiety_count, anxiety_stab_preds = prompt_GPT_stability(data, label_matrix, symptom = SYMPTOM[0], idx = 777, iter = 200)
@@ -353,8 +379,22 @@ print(f"True label: {label_matrix[777, :]}")
 stability_preds = np.concatenate((anxiety_stab_preds, depression_stab_preds), axis=1)
 print(stability_preds.shape)
 elements, repeats = np.unique(stability_preds, return_counts=True, axis=0)
-print(elements)
-print(repeats)
+elements = elements.astype(int)
+print(f"The unique label combinations are: {elements}")
+print(f"Each with repeats: {repeats}")
+
+# draw confusion matrix
+confusion_matrix = np.zeros((2, 2), dtype=int)
+# rows = depression, cols = anxiety
+for i, (anx, dep) in enumerate(elements):
+    confusion_matrix[dep, anx] = repeats[i]
+plt.figure(figsize=(5, 4))
+sns.heatmap(confusion_matrix, annot=True, fmt='d', cmap='Purples', xticklabels=['-', '+'], yticklabels=['-', '+'])
+plt.xlabel('Anxiety Diagnosis')
+plt.ylabel('Depression Diagnosis')
+plt.title('Label Distribution')
+plt.tight_layout()
+plt.savefig(f'stability_{MODEL}.png')
 
 print(f"\n****Script complete***")
 
