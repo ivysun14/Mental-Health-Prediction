@@ -15,7 +15,6 @@ _When use copy this file to the respective model folder._
     - `plot_loss_curves`: plot training and evaluation loss across epochs
     - `plot_metric_curves`: plot validation metrics across epochs
     - How to use:
-      - Add Your Own Model 
         - Create a directory under `models/your_model_name/`. 
         - Ensure it contains:
           - `your_model_name/full_train/log_history_fold_full.csv`
