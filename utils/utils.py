@@ -50,7 +50,7 @@ def per_class_metrics(y_true, y_pred_proba, y_pred_binary, class_names, prob=Tru
         accuracy = metrics.accuracy_score(y_true_class, y_pred_class)
 
         # Confusion matrix
-        cf_mat = metrics.confusion_matrix(y_true_class, y_pred_class)
+        cf_mat = metrics.confusion_matrix(y_true_class, y_pred_class, labels=[0, 1])
         tn, fp, fn, tp = cf_mat.ravel().tolist()
 
         # Precision, recall, specificity
